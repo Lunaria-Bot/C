@@ -1,10 +1,11 @@
-# Discord Bot (Ping, Embed, Autorole, Say)
+# Discord Bot (Ping, Embed, Autorole, Say, Debug)
 
 This bot includes:
 - `/ping` → test
 - `/embed` → create custom embed (admins only, with title, description, color, thumbnail, image)
 - `/autorole <role>` → send button to toggle role
 - `/say <message> [channel] [embed]` → make the bot send a normal or embed message
+- `/debug` → show bot and server information (admins only, embed output)
 
 ## Env vars to set on Railway (Service → Variables)
 - `DISCORD_TOKEN` = your Discord bot token

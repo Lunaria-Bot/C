@@ -14,11 +14,10 @@ GUILD_ID = int(GUILD_ID)
 
 intents = discord.Intents.default()
 intents.guilds = True
-intents.members = True  # ⚠️ Must also be enabled in Discord Developer Portal
+intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-# ===== Storage =====
 STORAGE_FILE = "storage.json"
 
 def load_storage():
@@ -33,7 +32,6 @@ def save_storage(data):
 
 storage = load_storage()
 
-# ===== Components =====
 class AutoroleButton(discord.ui.Button):
     def __init__(self, role_id: int):
         super().__init__(style=discord.ButtonStyle.primary, label="Get Role", custom_id=f"autorole-{role_id}")
@@ -54,15 +52,13 @@ class AutoroleButton(discord.ui.Button):
                 await member.add_roles(role)
                 await interaction.response.send_message(f"✅ You got {role.name}!", ephemeral=True)
         except discord.Forbidden:
-            await interaction.response.send_message("⚠️ I don’t have permission to manage this role. Move my role higher!", ephemeral=True)
+            await interaction.response.send_message("⚠️ I don’t have permission to manage this role.", ephemeral=True)
 
-# ===== Events =====
 @bot.event
 async def on_ready():
     await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
     print(f"✅ Logged in as {bot.user}")
 
-    # Restore autorole buttons
     for msg_id, data in storage["autoroles"].items():
         channel = bot.get_channel(data["channel_id"])
         if channel:
@@ -70,7 +66,6 @@ async def on_ready():
             view.add_item(AutoroleButton(data["role_id"]))
             bot.add_view(view, message_id=int(msg_id))
 
-# ===== Commands =====
 @bot.tree.command(name="ping", description="Test if the bot is alive", guild=discord.Object(id=GUILD_ID))
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message("🏓 Pong!")
@@ -90,17 +85,17 @@ async def embed(interaction: discord.Interaction, title: str, description: str, 
                 "purple": discord.Color.purple(),
                 "orange": discord.Color.orange()
             }
-            embed_color = colors.get(color.lower(), discord.Color.blue())
+            embed_color = colors.get(color.lower(), discord.Color.blurple())
     except:
-        embed_color = discord.Color.blue()
+        embed_color = discord.Color.blurple()
 
-    embed = discord.Embed(title=title, description=description, color=embed_color)
-    if thumbnail:
-        embed.set_thumbnail(url=thumbnail)
-    if image:
-        embed.set_image(url=image)
+    emb = discord.Embed(title=title, description=description, color=embed_color)
+    if thumbnail and thumbnail.startswith("http"):
+        emb.set_thumbnail(url=thumbnail)
+    if image and image.startswith("http"):
+        emb.set_image(url=image)
 
-    await interaction.response.send_message(embed=embed)
+    await interaction.response.send_message(embed=emb)
 
 @bot.tree.command(name="autorole", description="Send an auto role message", guild=discord.Object(id=GUILD_ID))
 @app_commands.checks.has_permissions(administrator=True)
@@ -127,10 +122,23 @@ async def say(interaction: discord.Interaction, message: str, channel: discord.T
         await target_channel.send(message)
     await interaction.response.send_message(f"✅ Message sent in {target_channel.mention}", ephemeral=True)
 
-# ===== Error handling =====
+@bot.tree.command(name="debug", description="Show bot debug info", guild=discord.Object(id=GUILD_ID))
+@app_commands.checks.has_permissions(administrator=True)
+async def debug(interaction: discord.Interaction):
+    guild = interaction.guild
+    emb = discord.Embed(title="🛠️ Debug Info", color=discord.Color.blurple())
+    emb.add_field(name="Bot", value=f"{bot.user} (`{bot.user.id}`)", inline=False)
+    emb.add_field(name="Server", value=f"{guild.name} (`{guild.id}`)", inline=False)
+    emb.add_field(name="Members", value=str(guild.member_count), inline=True)
+    emb.add_field(name="Roles", value=str(len(guild.roles)), inline=True)
+    emb.add_field(name="Channels", value=str(len(guild.channels)), inline=True)
+    emb.add_field(name="Intents", value=f"Members: {bot.intents.members}\nGuilds: {bot.intents.guilds}", inline=False)
+    await interaction.response.send_message(embed=emb, ephemeral=True)
+
 @embed.error
 @autorole.error
 @say.error
+@debug.error
 async def permissions_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.MissingPermissions):
         await interaction.response.send_message("❌ You must be an **Administrator** to use this command.", ephemeral=True)
