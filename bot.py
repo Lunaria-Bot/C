@@ -1,80 +1,75 @@
 import os
-import asyncio
 import discord
 from discord.ext import commands
 from discord import app_commands
+import asyncio
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = int(os.getenv("DISCORD_GUILD_ID"))
-MAZOKU_ID = 1242388858897956906
 
 intents = discord.Intents.default()
+intents.messages = True
 intents.message_content = True
 intents.guilds = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
+# ========== Events ==========
 @bot.event
 async def on_ready():
+    guild = discord.Object(id=GUILD_ID)
+    bot.tree.copy_global_to(guild=guild)
+    await bot.tree.sync(guild=guild)
     print(f"✅ Logged in as {bot.user}")
-    try:
-        synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
-        print(f"🔗 Synced {len(synced)} commands (guild scoped)")
-    except Exception as e:
-        print(f"❌ Sync error: {e}")
+    print("🔗 Commands synced")
 
-# Listener Mazoku messages
+# ========== Mazoku Detection ==========
 @bot.event
 async def on_message(message: discord.Message):
-    if message.author.id != MAZOKU_ID:
+    # Ignore own messages
+    if message.author.id == bot.user.id:
         return
 
-    print(f"DEBUG Mazoku message content: {message.content}")
+    # Mazoku bot ID
+    if message.author.id == 1242388858897956906:
+        if message.embeds:
+            for embed in message.embeds:
+                print("Mazoku embed title:", embed.title)
+                print("Mazoku embed description:", embed.description)
 
-    if message.embeds:
-        for embed in message.embeds:
-            print("DEBUG Mazoku embed title:", embed.title)
-            print("DEBUG Mazoku embed description:", embed.description)
-            print("DEBUG Mazoku embed footer:", embed.footer.text if embed.footer else None)
+                # Detect Refreshing Box
+                if embed.title and "Refreshing Box Opened" in embed.title:
+                    claimed_user = None
 
-            if embed.title and "Refreshing Box Opened" in embed.title:
-                user = None
+                    # Check for "Claimed By" in description
+                    if embed.description and "Claimed By" in embed.description:
+                        claimed_user = embed.description.split("Claimed By")[-1].strip()
 
-                if embed.footer and "Opened by" in embed.footer.text:
-                    footer_text = embed.footer.text
-                    username = footer_text.replace("Opened by ", "").split("•")[0].strip()
-                    guild = bot.get_guild(GUILD_ID)
-                    user = discord.utils.find(
-                        lambda m: m.name == username or m.display_name == username,
-                        guild.members
-                    )
+                    if claimed_user:
+                        await message.channel.send(
+                            f"⏳ Reminder started for {claimed_user}, you'll be pinged in 60s!"
+                        )
+                        await asyncio.sleep(60)
+                        await message.channel.send(
+                            f"🔔 {claimed_user} You can open again your Refreshing Box!"
+                        )
 
-                if not user:
-                    for field in embed.fields:
-                        if "Claimed By" in field.name and field.value:
-                            user = field.value
-                            break
+    # Keep commands working
+    await bot.process_commands(message)
 
-                if user:
-                    await message.channel.send(f"⏳ Reminder set for {user.mention}, you'll be pinged in 60s!")
-                    await asyncio.sleep(60)
-                    await message.channel.send(f"🔔 {user.mention} You can open again your Refreshing Box!")
-
-# Command /ping for testing
-@bot.tree.command(name="ping", description="Check if the bot is alive", guild=discord.Object(id=GUILD_ID))
-async def ping(interaction: discord.Interaction):
-    await interaction.response.send_message("🏓 Pong!", ephemeral=True)
-
-# Command /testembed to simulate Mazoku
-@bot.tree.command(name="testembed", description="Simulate a Mazoku embed", guild=discord.Object(id=GUILD_ID))
-@app_commands.describe(user="User to simulate as the box opener")
-async def testembed(interaction: discord.Interaction, user: discord.Member):
-    embed = discord.Embed(title="Refreshing Box Opened", description="A test box was opened!", color=discord.Color.green())
-    embed.set_footer(text=f"Opened by {user.display_name}")
+# ========== Test Command ==========
+@bot.tree.command(name="testembed", description="Simulate a Mazoku Refreshing Box embed", guild=discord.Object(id=GUILD_ID))
+@app_commands.describe(user="The user to claim the box", delay="Delay in seconds before reminder")
+async def testembed(interaction: discord.Interaction, user: discord.Member, delay: int = 60):
+    embed = discord.Embed(
+        title="Refreshing Box Opened",
+        description=f"Claimed By {user.mention}",
+        color=discord.Color.green()
+    )
     await interaction.response.send_message(embed=embed)
-    await interaction.channel.send(f"⏳ Reminder set for {user.mention}, you'll be pinged in 10s (test mode).")
-    await asyncio.sleep(10)
-    await interaction.channel.send(f"🔔 {user.mention} You can open again your Refreshing Box! (test)")
+
+    await asyncio.sleep(delay)
+    await interaction.channel.send(f"🔔 {user.mention} You can open again your Refreshing Box!")
 
 bot.run(TOKEN)
