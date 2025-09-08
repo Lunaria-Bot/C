@@ -71,17 +71,33 @@ async def debug(interaction: discord.Interaction):
     emb.add_field(name="Latency", value=f"{round(bot.latency*1000)}ms", inline=False)
     await interaction.response.send_message(embed=emb, ephemeral=True)
 
-# --- MAZOKU REMINDER SYSTEM ---
+# --- MAZOKU REMINDER SYSTEM (DEBUG MODE) ---
 @bot.event
 async def on_message(message: discord.Message):
-    if message.author.id == MAZOKU_ID and "Refreshing Box Opened" in message.content:
-        # Trouver qui a claim
-        for mention in message.mentions:
-            user = mention
-            await message.channel.send(f"⏳ Reminder set for {user.mention}! You can open again in 60s.")
-            
-            await asyncio.sleep(60)
-            await message.channel.send(f"🎉 {user.mention} You can open again your Refreshing Box!")
+    if message.author.id == MAZOKU_ID:
+        print("DEBUG Mazoku message content:", message.content)
+
+        if message.embeds:
+            for i, embed in enumerate(message.embeds):
+                print(f"DEBUG Mazoku embed #{i}:", embed.to_dict())
+
+        # Build combined text from content + embed titles/descriptions
+        text_to_check = message.content
+        if message.embeds:
+            for embed in message.embeds:
+                if embed.description:
+                    text_to_check += " " + embed.description
+                if embed.title:
+                    text_to_check += " " + embed.title
+
+        if "Refreshing Box Opened" in text_to_check:
+            if message.mentions:
+                for user in message.mentions:
+                    await message.channel.send(f"⏳ Reminder set for {user.mention}! You can open again in 60s.")
+                    await asyncio.sleep(60)
+                    await message.channel.send(f"🎉 {user.mention} You can open again your Refreshing Box!")
+            else:
+                await message.channel.send("⚠️ Could not detect the player mention in Mazoku's message.")
 
     await bot.process_commands(message)
 
