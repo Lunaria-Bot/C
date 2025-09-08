@@ -3,15 +3,15 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 
-TOKEN = os.environ.get("TOKEN")
-GUILD_ID = os.environ.get("GUILD_ID")
+TOKEN = os.environ.get("DISCORD_TOKEN")
+GUILD_ID = os.environ.get("DISCORD_GUILD_ID")
 
 if not TOKEN or not GUILD_ID:
-    raise RuntimeError("❌ Missing TOKEN or GUILD_ID environment variables.")
+    raise RuntimeError("❌ Missing DISCORD_TOKEN or DISCORD_GUILD_ID environment variables.")
 
 intents = discord.Intents.default()
-intents.members = True
 intents.guilds = True
+intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
