@@ -1,15 +1,17 @@
-# Discord Bot (Clean Railway, Renamed Env Vars)
+# Discord Bot (Full Features)
 
-This repo is intentionally minimal and avoids the variable name `TOKEN` during build.
+This bot includes:
+- `/ping` → test
+- `/embed` → create custom embed (admins only)
+- `/autorole <role>` → send button to toggle role
+- `/setup <@role1,@role2,...>` → send multi-role selector
 
 ## Env vars to set on Railway (Service → Variables)
 - `DISCORD_TOKEN` = your Discord bot token
 - `DISCORD_GUILD_ID` = your server ID
 
-## Files
-- `bot.py` — minimal bot with `/ping`
-- `Procfile` — `worker: python -u bot.py`
-- `requirements.txt` — `discord.py` only
+## Persistence
+Autorole and setup messages are saved in `storage.json` to survive restarts.
 
 ## Local run (optional)
 Create a `.env` locally (do NOT commit it):
@@ -17,6 +19,7 @@ Create a `.env` locally (do NOT commit it):
 DISCORD_TOKEN=your_token_here
 DISCORD_GUILD_ID=your_guild_id_here
 ```
+
 Then run:
 ```
 python bot.py
