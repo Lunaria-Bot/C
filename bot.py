@@ -1,79 +1,68 @@
 import os
+import asyncio
 import discord
 from discord.ext import commands
-import asyncio
+from discord import app_commands
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = int(os.getenv("DISCORD_GUILD_ID"))
-MAZOKU_ID = 1242388858897956906
 
 intents = discord.Intents.default()
-intents.messages = True
 intents.message_content = True
 intents.guilds = True
 intents.members = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-debug_user = None
-
 @bot.event
 async def on_ready():
     print(f"✅ Logged in as {bot.user}")
-
     try:
         synced = await bot.tree.sync(guild=discord.Object(id=GUILD_ID))
-        print(f"🔗 Synced {len(synced)} commands")
+        print(f"🔗 Synced {len(synced)} commands (guild scoped)")
     except Exception as e:
-        print(f"❌ Sync failed: {e}")
+        print(f"❌ Sync error: {e}")
 
-@bot.tree.command(name="debugmode", description="Enable Mazoku debug logs via DM", guild=discord.Object(id=GUILD_ID))
-async def debugmode(interaction: discord.Interaction):
-    global debug_user
-    debug_user = interaction.user
-    await interaction.response.send_message("✅ Debug mode enabled! I'll DM you Mazoku messages.", ephemeral=True)
-
-@bot.tree.command(name="stopdebug", description="Disable Mazoku debug logs", guild=discord.Object(id=GUILD_ID))
-async def stopdebug(interaction: discord.Interaction):
-    global debug_user
-    debug_user = None
-    await interaction.response.send_message("🛑 Debug mode disabled.", ephemeral=True)
-
+# Listener Mazoku messages
 @bot.event
 async def on_message(message: discord.Message):
-    global debug_user
+    if message.author.id != 1242388858897956906:
+        return
 
-    if message.author.id == MAZOKU_ID:
-        print("DEBUG Mazoku message content:", message.content)
+    print(f"DEBUG Mazoku message content: {message.content}")
 
-        if debug_user:
-            try:
-                dm_content = f"**Mazoku message content:** `{message.content}`\n"
-                if message.embeds:
-                    for i, embed in enumerate(message.embeds):
-                        embed_dict = embed.to_dict()
-                        dm_content += f"**Embed #{i}:** ```json\n{embed_dict}```\n"
-                await debug_user.send(dm_content[:1900])
-            except Exception as e:
-                print("⚠️ Could not DM debug info:", e)
+    if message.embeds:
+        for embed in message.embeds:
+            print("DEBUG Mazoku embed title:", embed.title)
+            print("DEBUG Mazoku embed description:", embed.description)
+            print("DEBUG Mazoku embed footer:", embed.footer.text if embed.footer else None)
 
-        text_to_check = message.content
-        if message.embeds:
-            for embed in message.embeds:
-                if embed.description:
-                    text_to_check += " " + embed.description
-                if embed.title:
-                    text_to_check += " " + embed.title
+            if embed.title and "Refreshing Box Opened" in embed.title:
+                user = None
 
-        if "Refreshing Box Opened" in text_to_check:
-            if message.mentions:
-                for user in message.mentions:
-                    await message.channel.send(f"⏳ Reminder set for {user.mention}! You can open again in 60s.")
+                if embed.footer and "Opened by" in embed.footer.text:
+                    footer_text = embed.footer.text
+                    username = footer_text.replace("Opened by ", "").split("•")[0].strip()
+                    guild = bot.get_guild(GUILD_ID)
+                    user = discord.utils.find(
+                        lambda m: m.name == username or m.display_name == username,
+                        guild.members
+                    )
+
+                if not user:
+                    for field in embed.fields:
+                        if "Claimed By" in field.name and field.value:
+                            user = field.value
+                            break
+
+                if user:
+                    await message.channel.send(f"⏳ Reminder set for {user.mention}, you'll be pinged in 60s!")
                     await asyncio.sleep(60)
-                    await message.channel.send(f"🎉 {user.mention} You can open again your Refreshing Box!")
-            else:
-                await message.channel.send("⚠️ Could not detect the player mention in Mazoku's message.")
+                    await message.channel.send(f"🔔 {user.mention} You can open again your Refreshing Box!")
 
-    await bot.process_commands(message)
+# Command /ping pour vérifier le bot
+@bot.tree.command(name="ping", description="Check if the bot is alive", guild=discord.Object(id=GUILD_ID))
+async def ping(interaction: discord.Interaction):
+    await interaction.response.send_message("🏓 Pong!", ephemeral=True)
 
 bot.run(TOKEN)
