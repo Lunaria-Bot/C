@@ -75,10 +75,31 @@ async def on_ready():
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message("🏓 Pong!")
 
-@bot.tree.command(name="embed", description="Create a custom embed", guild=discord.Object(id=GUILD_ID))
+@bot.tree.command(name="embed", description="Create a custom embed with options", guild=discord.Object(id=GUILD_ID))
 @app_commands.checks.has_permissions(administrator=True)
-async def embed(interaction: discord.Interaction, title: str, description: str):
-    embed = discord.Embed(title=title, description=description, color=discord.Color.random())
+async def embed(interaction: discord.Interaction, title: str, description: str, color: str = "blue", thumbnail: str = None, image: str = None):
+    try:
+        if color.startswith("#"):
+            embed_color = discord.Color(int(color[1:], 16))
+        else:
+            colors = {
+                "red": discord.Color.red(),
+                "blue": discord.Color.blue(),
+                "green": discord.Color.green(),
+                "yellow": discord.Color.yellow(),
+                "purple": discord.Color.purple(),
+                "orange": discord.Color.orange()
+            }
+            embed_color = colors.get(color.lower(), discord.Color.blue())
+    except:
+        embed_color = discord.Color.blue()
+
+    embed = discord.Embed(title=title, description=description, color=embed_color)
+    if thumbnail:
+        embed.set_thumbnail(url=thumbnail)
+    if image:
+        embed.set_image(url=image)
+
     await interaction.response.send_message(embed=embed)
 
 @bot.tree.command(name="autorole", description="Send an auto role message", guild=discord.Object(id=GUILD_ID))
@@ -95,9 +116,21 @@ async def autorole(interaction: discord.Interaction, role: discord.Role):
     storage["autoroles"][str(msg.id)] = {"channel_id": interaction.channel.id, "role_id": role.id}
     save_storage(storage)
 
+@bot.tree.command(name="say", description="Make the bot say something", guild=discord.Object(id=GUILD_ID))
+@app_commands.checks.has_permissions(administrator=True)
+async def say(interaction: discord.Interaction, message: str, channel: discord.TextChannel = None, embed: bool = False):
+    target_channel = channel or interaction.channel
+    if embed:
+        emb = discord.Embed(description=message, color=discord.Color.blurple())
+        await target_channel.send(embed=emb)
+    else:
+        await target_channel.send(message)
+    await interaction.response.send_message(f"✅ Message sent in {target_channel.mention}", ephemeral=True)
+
 # ===== Error handling =====
 @embed.error
 @autorole.error
+@say.error
 async def permissions_error(interaction: discord.Interaction, error):
     if isinstance(error, app_commands.MissingPermissions):
         await interaction.response.send_message("❌ You must be an **Administrator** to use this command.", ephemeral=True)
