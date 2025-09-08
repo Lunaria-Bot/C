@@ -6,6 +6,7 @@ from discord import app_commands
 
 TOKEN = os.getenv("DISCORD_TOKEN")
 GUILD_ID = int(os.getenv("DISCORD_GUILD_ID"))
+MAZOKU_ID = 1242388858897956906
 
 intents = discord.Intents.default()
 intents.message_content = True
@@ -26,7 +27,7 @@ async def on_ready():
 # Listener Mazoku messages
 @bot.event
 async def on_message(message: discord.Message):
-    if message.author.id != 1242388858897956906:
+    if message.author.id != MAZOKU_ID:
         return
 
     print(f"DEBUG Mazoku message content: {message.content}")
@@ -60,9 +61,20 @@ async def on_message(message: discord.Message):
                     await asyncio.sleep(60)
                     await message.channel.send(f"🔔 {user.mention} You can open again your Refreshing Box!")
 
-# Command /ping pour vérifier le bot
+# Command /ping for testing
 @bot.tree.command(name="ping", description="Check if the bot is alive", guild=discord.Object(id=GUILD_ID))
 async def ping(interaction: discord.Interaction):
     await interaction.response.send_message("🏓 Pong!", ephemeral=True)
+
+# Command /testembed to simulate Mazoku
+@bot.tree.command(name="testembed", description="Simulate a Mazoku embed", guild=discord.Object(id=GUILD_ID))
+@app_commands.describe(user="User to simulate as the box opener")
+async def testembed(interaction: discord.Interaction, user: discord.Member):
+    embed = discord.Embed(title="Refreshing Box Opened", description="A test box was opened!", color=discord.Color.green())
+    embed.set_footer(text=f"Opened by {user.display_name}")
+    await interaction.response.send_message(embed=embed)
+    await interaction.channel.send(f"⏳ Reminder set for {user.mention}, you'll be pinged in 10s (test mode).")
+    await asyncio.sleep(10)
+    await interaction.channel.send(f"🔔 {user.mention} You can open again your Refreshing Box! (test)")
 
 bot.run(TOKEN)
